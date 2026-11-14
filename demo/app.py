@@ -26,6 +26,22 @@ from shortrec.recommender import Recommender  # noqa: E402
 from shortrec.synthetic import write_synthetic  # noqa: E402
 from shortrec.utils import get_device  # noqa: E402
 
+# Hugging Face ZeroGPU: importing `spaces` marks the Space as ZeroGPU-ready, and
+# ZeroGPU expects at least one @spaces.GPU-registered function. Our recommender
+# inference is CPU-light and runs in-process on CPU, so this warmup is only here
+# to satisfy ZeroGPU's registration; it is not used in the normal request path.
+# Guarded so the app still runs locally (where `spaces` isn't installed).
+try:
+    import spaces  # noqa: E402
+
+    @spaces.GPU
+    def _gpu_warmup():
+        import torch
+
+        return float(torch.zeros(1).sum())
+except ImportError:
+    pass
+
 
 def _ensure_artifacts() -> str:
     """Return a dir containing trained artifacts, training a synthetic model if needed."""

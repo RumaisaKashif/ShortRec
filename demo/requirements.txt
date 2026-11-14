@@ -1,7 +1,9 @@
-# Demo (Hugging Face Space) dependencies — CPU only.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.2
+# Demo dependencies for Hugging Face Spaces (Gradio SDK, ZeroGPU-compatible).
+# `spaces` registers the Space for ZeroGPU; torch is left unpinned to CPU so the
+# ZeroGPU image's CUDA build is used. Our inference is CPU-light regardless.
+spaces>=0.30
 gradio>=4.0
+torch>=2.2
 numpy>=1.24
 pandas>=2.0
 scikit-learn>=1.3
