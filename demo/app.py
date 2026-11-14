@@ -128,4 +128,6 @@ def build_ui() -> gr.Blocks:
 
 
 if __name__ == "__main__":
-    build_ui().launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    # No server_name/port here: Hugging Face Spaces sets them via env, and
+    # passing them explicitly makes Gradio's local-accessibility check fail.
+    build_ui().launch()
