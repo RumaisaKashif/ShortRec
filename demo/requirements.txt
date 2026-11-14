@@ -2,7 +2,8 @@
 # `spaces` registers the Space for ZeroGPU; torch is left unpinned to CPU so the
 # ZeroGPU image's CUDA build is used. Our inference is CPU-light regardless.
 spaces>=0.30
-gradio>=4.0
+gradio==4.44.1
+huggingface_hub>=0.24,<1.0
 torch>=2.2
 numpy>=1.24
 pandas>=2.0
