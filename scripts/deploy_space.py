@@ -47,10 +47,25 @@ def main() -> None:
         raise SystemExit("Set HF_TOKEN (a Hugging Face *write* token) in the environment.")
 
     from huggingface_hub import HfApi
+    from huggingface_hub.utils import HfHubHTTPError
 
     repo_id = f"{args.username}/{args.space}"
     api = HfApi(token=token)
-    api.create_repo(repo_id=repo_id, repo_type="space", space_sdk="gradio", exist_ok=True)
+
+    # Create the Space only if it doesn't exist. Some accounts can't create
+    # repos via API token (HTTP 402); in that case create the empty Space once
+    # in the UI (https://huggingface.co/new-space, Gradio SDK) and re-run — the
+    # upload below works with a plain write token.
+    if not api.repo_exists(repo_id=repo_id, repo_type="space"):
+        try:
+            api.create_repo(repo_id=repo_id, repo_type="space", space_sdk="gradio", exist_ok=True)
+        except HfHubHTTPError as e:
+            raise SystemExit(
+                f"Could not create the Space via API ({e}).\n"
+                f"Create it once manually at https://huggingface.co/new-space "
+                f"(Owner: {args.username}, Space name: {args.space}, SDK: Gradio, "
+                f"Hardware: CPU basic / free), then re-run this deploy."
+            ) from e
 
     folder = _stage()
     api.upload_folder(folder_path=folder, repo_id=repo_id, repo_type="space",
