@@ -11,8 +11,12 @@ import os
 import sys
 import time
 
-OK = {"RUNNING", "RUNNING_BUILDING", "SLEEPING"}
+OK = {"RUNNING", "SLEEPING"}
 ERR = {"BUILD_ERROR", "RUNTIME_ERROR", "CONFIG_ERROR", "NO_APP_FILE"}
+# Stages that prove our just-uploaded commit started rebuilding. We only trust a
+# terminal stage after seeing one of these, so we don't read the PREVIOUS
+# container's stale RUNNING/ERROR before the rebuild kicks in.
+PROGRESS = {"BUILDING", "APP_STARTING", "RUNNING_BUILDING"}
 
 
 def main() -> int:
@@ -26,29 +30,30 @@ def main() -> int:
 
     api = HfApi(token=token)
     repo_id = f"{user}/{space}"
-    timeout = int(os.environ.get("TIMEOUT", "480"))
-
-    # Grace period: let the upload trigger a rebuild so we don't read the
-    # previous run's stale stage.
-    time.sleep(45)
+    timeout = int(os.environ.get("TIMEOUT", "720"))
 
     deadline = time.time() + timeout
     last = None
+    seen_progress = False
     while time.time() < deadline:
         stage = api.get_space_runtime(repo_id).stage
         if stage != last:
             print(f"stage: {stage}", flush=True)
             last = stage
-        if stage in OK:
+        if stage in PROGRESS:
+            seen_progress = True
+        elif seen_progress and stage in OK:
             print(f"Space is up: https://huggingface.co/spaces/{repo_id}")
             return 0
-        if stage in ERR:
+        elif seen_progress and stage in ERR:
             print(f"::error::Space entered {stage}. See logs at "
                   f"https://huggingface.co/spaces/{repo_id}?logs=container")
             return 1
+        # Before the rebuild starts, any terminal stage is the previous
+        # container's — keep waiting for BUILDING/APP_STARTING.
         time.sleep(10)
 
-    print("::error::Timed out waiting for the Space to reach RUNNING.")
+    print("::error::Timed out waiting for the rebuild to finish.")
     return 1
 
 

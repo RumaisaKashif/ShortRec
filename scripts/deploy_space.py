@@ -20,9 +20,12 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# NB: do NOT ignore "artifacts" globally — that would also strip the bundled
+# demo/artifacts model the Space needs. The root artifacts/ dir is gitignored
+# and absent from a fresh checkout, so it won't be uploaded anyway.
 IGNORE = shutil.ignore_patterns(
     ".git", "__pycache__", "*.pyc", "*.egg-info", ".pytest_cache", ".ruff_cache",
-    "data", "artifacts", ".venv", "venv",
+    "data", ".venv", "venv",
 )
 
 
