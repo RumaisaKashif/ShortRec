@@ -16,6 +16,7 @@ from pathlib import Path
 
 import gradio as gr
 import pandas as pd
+import torch
 
 # Make the `shortrec` package importable when run from a cloned repo / Space.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -24,7 +25,6 @@ from shortrec.config import load_config  # noqa: E402
 from shortrec.pipeline import run  # noqa: E402
 from shortrec.recommender import Recommender  # noqa: E402
 from shortrec.synthetic import write_synthetic  # noqa: E402
-from shortrec.utils import get_device  # noqa: E402
 
 # Hugging Face ZeroGPU: importing `spaces` marks the Space as ZeroGPU-ready, and
 # ZeroGPU expects at least one @spaces.GPU-registered function. Our recommender
@@ -43,10 +43,19 @@ except ImportError:
     pass
 
 
+HERE = Path(__file__).resolve().parent
+
+
 def _ensure_artifacts() -> str:
-    """Return a dir containing trained artifacts, training a synthetic model if needed."""
+    """Return a dir with trained artifacts.
+
+    Prefers the model bundled in the repo (demo/artifacts) so the Space loads and
+    serves without training at boot — important on ZeroGPU, where training would
+    trigger a CUDA init outside a @spaces.GPU context. Only trains (locally) if
+    no bundled or configured artifacts exist.
+    """
     env = os.environ.get("SHORTREC_ARTIFACTS")
-    for cand in [env, "artifacts", str(Path(__file__).resolve().parent.parent / "artifacts")]:
+    for cand in [env, str(HERE / "artifacts"), "artifacts", str(HERE.parent / "artifacts")]:
         if cand and (Path(cand) / "meta.json").exists():
             return cand
 
@@ -62,7 +71,10 @@ def _ensure_artifacts() -> str:
     return cfg["artifacts_dir"]
 
 
-DEVICE = get_device()
+# Force CPU: the demo is inference-only and CPU-light. On ZeroGPU this also
+# avoids any CUDA probing (torch.cuda.is_available / optimizer accelerator
+# checks) that its PyTorch patch would reject outside a @spaces.GPU context.
+DEVICE = torch.device("cpu")
 ARTIFACTS = _ensure_artifacts()
 REC = Recommender.from_dir(ARTIFACTS, DEVICE)
 USER_CHOICES = [str(u) for u in REC.known_users[:500]]

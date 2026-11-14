@@ -36,3 +36,9 @@ jobs:
             exit 1
           fi
           python scripts/deploy_space.py --username "$HF_USERNAME"
+
+      - name: Wait for the Space to come up
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ vars.HF_USERNAME }}
+        run: python scripts/check_space.py
