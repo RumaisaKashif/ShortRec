@@ -1,9 +1,9 @@
 # Demo dependencies for Hugging Face Spaces (Gradio SDK, ZeroGPU-compatible).
-# `spaces` registers the Space for ZeroGPU; torch is left unpinned to CPU so the
-# ZeroGPU image's CUDA build is used. Our inference is CPU-light regardless.
+# `spaces` registers the Space for ZeroGPU. Gradio is pinned to match the README
+# sdk_version; Gradio 5 uses the current Starlette API (Gradio 4.x broke on it
+# with "unhashable type: dict") and doesn't import the removed HfFolder.
 spaces>=0.30
-gradio==4.44.1
-huggingface_hub>=0.24,<1.0
+gradio==5.49.1
 torch>=2.2
 numpy>=1.24
 pandas>=2.0
