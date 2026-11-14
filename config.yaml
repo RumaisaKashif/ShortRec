@@ -1,0 +1,31 @@
+# ShortRec configuration. Values here override shortrec/config.py DEFAULTS.
+seed: 42
+
+data:
+  # Download KuaiRand-Pure from https://kuairand.com and point this at the log.
+  interactions_path: data/KuaiRand-Pure/data/log_standard_4_08_to_4_21_pure.csv
+  user_id_col: user_id
+  item_id_col: video_id
+  time_col: time_ms
+  click_col: is_click
+  engage_col: long_view        # watch-through label (retrieval positive + ranker target)
+  duration_col: duration_ms    # optional ranker feature; ignored if absent
+  train_frac: 0.7
+  val_frac: 0.1                 # remaining 0.2 is the test period
+
+retriever:
+  emb_dim: 64
+  epochs: 5
+  batch_size: 1024
+  lr: 0.001
+  num_negatives: 4
+  recall_k: 50
+
+ranker:
+  hidden_dims: [128, 64]
+  dropout: 0.1
+  epochs: 5
+  batch_size: 1024
+  lr: 0.001
+
+artifacts_dir: artifacts
