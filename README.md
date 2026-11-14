@@ -61,8 +61,25 @@ python demo/app.py
 A **Gradio** app (`demo/app.py`) exposes the two-stage recommender: pick a user,
 get their personalized Top-N with per-item long-view probabilities. It loads
 `artifacts/` if present, otherwise trains a quick synthetic model so it always
-boots. Deploy **free** on **Hugging Face Spaces** — see
-[`demo/README_SPACE.md`](demo/README_SPACE.md).
+boots. Deploy **free** on **Hugging Face Spaces** — two ways:
+
+**Automated (CI/CD).** The `Deploy to Hugging Face Spaces` workflow deploys after
+CI passes on `main` (and on manual dispatch). One-time setup in
+**Settings → Secrets and variables → Actions**:
+- add a **secret** `HF_TOKEN` — a Hugging Face *write* token
+  ([create one](https://huggingface.co/settings/tokens)), and
+- add a **variable** `HF_USERNAME` — your Hugging Face username.
+
+The workflow creates the Space and pushes to it; your token stays encrypted in
+GitHub and is never exposed.
+
+**One-liner (local).** Deploy from your machine without touching GitHub secrets:
+```bash
+pip install huggingface_hub
+HF_TOKEN=hf_xxx python scripts/deploy_space.py --username <your-hf-username>
+```
+
+Space config lives in [`demo/README_SPACE.md`](demo/README_SPACE.md).
 
 ## Project layout
 
