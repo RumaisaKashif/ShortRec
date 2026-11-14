@@ -101,10 +101,11 @@ def _metrics_md() -> str:
     ret, rank = METRICS.get("retrieval", {}), METRICS.get("ranking", {})
     return (
         f"**Dataset:** {METRICS.get('n_users','?')} users · {METRICS.get('n_items','?')} videos · "
-        f"{METRICS.get('n_interactions','?')} interactions  \n"
-        f"**Retrieval:** Recall@50 `{ret.get('recall@50')}` vs popularity "
-        f"`{ret.get('popularity_recall@50')}` (lift `{ret.get('lift_vs_popularity')}x`)  \n"
-        f"**Ranking:** MLP GAUC `{rank.get('mlp_gauc')}` vs logistic-regression `{rank.get('logreg_gauc')}`"
+        f"{METRICS.get('n_interactions','?')} interactions (KuaiRand-Pure)  \n"
+        f"**Ranking (long-view):** ROC-AUC `{rank.get('mlp_auc')}`, GAUC `{rank.get('mlp_gauc')}` "
+        f"(logistic-regression AUC `{rank.get('logreg_auc')}`)  \n"
+        f"**Retrieval (candidate generation):** Recall@50 `{ret.get('recall@50')}` "
+        f"(popularity baseline `{ret.get('popularity_recall@50')}`)"
     )
 
 

@@ -11,10 +11,11 @@ import numpy as np
 
 from .data import HistoryStats
 
-# Order matters: index 0 is the retrieval score; indices 1 & 3 are the
-# historical engagement RATES removed in the ablation.
+# Historical engagement features computed from the training period only.
+# Indices 0 & 2 are the RATES removed in the ablation. (The retriever score is
+# deliberately NOT a ranker feature: on real data it leaked train-period
+# exposure and hurt held-out AUC, so the ranker uses engagement history only.)
 FEATURE_NAMES = [
-    "retriever_score",
     "user_hist_rate",
     "user_hist_count_log",
     "item_hist_rate",
@@ -27,7 +28,6 @@ ABLATION_DROP = ("user_hist_rate", "item_hist_rate")
 def build_features(
     users: np.ndarray,
     items: np.ndarray,
-    retriever_scores: np.ndarray,
     stats: HistoryStats,
     item_duration: dict[int, float] | None = None,
 ) -> np.ndarray:
@@ -43,12 +43,11 @@ def build_features(
     for row in range(n):
         u = int(users[row])
         it = int(items[row])
-        feats[row, 0] = retriever_scores[row]
-        feats[row, 1] = stats.user_rate.get(u, g)
-        feats[row, 2] = np.log1p(stats.user_count.get(u, 0.0))
-        feats[row, 3] = stats.item_rate.get(it, g)
-        feats[row, 4] = np.log1p(stats.item_count.get(it, 0.0))
-        feats[row, 5] = np.log1p(item_duration.get(it, 0.0))
+        feats[row, 0] = stats.user_rate.get(u, g)
+        feats[row, 1] = np.log1p(stats.user_count.get(u, 0.0))
+        feats[row, 2] = stats.item_rate.get(it, g)
+        feats[row, 3] = np.log1p(stats.item_count.get(it, 0.0))
+        feats[row, 4] = np.log1p(item_duration.get(it, 0.0))
     return feats
 
 

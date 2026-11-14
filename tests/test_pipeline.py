@@ -37,9 +37,9 @@ def test_ablation_mask_drops_two_features():
 
 def test_build_features_shape_and_cold_fallback():
     stats = D.HistoryStats({}, {}, {}, {}, global_rate=0.3)
-    feats = build_features(np.array([999]), np.array([888]), np.array([0.5]), stats, {})
-    assert feats.shape == (1, 6)
-    assert feats[0, 1] == 0.3 and feats[0, 3] == 0.3  # unknown user/item -> global rate
+    feats = build_features(np.array([999]), np.array([888]), stats, {})
+    assert feats.shape == (1, 5)
+    assert feats[0, 0] == 0.3 and feats[0, 2] == 0.3  # unknown user/item -> global rate
 
 
 def test_pipeline_beats_baselines_on_synthetic():

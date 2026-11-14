@@ -6,7 +6,6 @@ import os
 
 import numpy as np
 import pandas as pd
-import torch
 
 from . import data as D
 from .artifacts import save_bundle
@@ -14,13 +13,6 @@ from .features import ablation_mask, build_features
 from .ranking import evaluate_ranker, logreg_baseline, train_ranker
 from .retrieval import evaluate_retrieval, popularity_recall, train_two_tower
 from .utils import get_device, set_seed
-
-
-@torch.no_grad()
-def _pair_scores(model, users, items, id_maps, device) -> np.ndarray:
-    u = torch.as_tensor(id_maps.map_users(pd.Series(users)), dtype=torch.long, device=device)
-    i = torch.as_tensor(id_maps.map_items(pd.Series(items)), dtype=torch.long, device=device)
-    return model.score(u, i).cpu().numpy()
 
 
 def _item_durations(df: pd.DataFrame) -> dict:
@@ -60,11 +52,9 @@ def run(cfg: dict, df: pd.DataFrame | None = None, save: bool = True) -> dict:
 
     # ---- Stage 2: ranking ----
     Xtr = build_features(train_df["user_id"].to_numpy(), train_df["item_id"].to_numpy(),
-                         _pair_scores(retriever, train_df["user_id"], train_df["item_id"], id_maps, device),
                          stats, durations)
     ytr = train_df["engage"].to_numpy()
     Xte = build_features(test_df["user_id"].to_numpy(), test_df["item_id"].to_numpy(),
-                         _pair_scores(retriever, test_df["user_id"], test_df["item_id"], id_maps, device),
                          stats, durations)
     yte = test_df["engage"].to_numpy()
     users_te = test_df["user_id"].to_numpy()

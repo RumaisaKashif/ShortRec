@@ -49,7 +49,7 @@ class Recommender:
         cand_items = np.array([self._idx2item[i] for i in cand_idx])
 
         feats = build_features(
-            np.full(n_candidates, user_id), cand_items, cand_scores,
+            np.full(n_candidates, user_id), cand_items,
             self.stats, self.item_duration,
         )
         p = self._rank(feats)

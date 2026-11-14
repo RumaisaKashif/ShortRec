@@ -1,21 +1,21 @@
 {
-  "n_interactions": 40000,
-  "n_users": 800,
-  "n_items": 500,
+  "n_interactions": 1141112,
+  "n_users": 26210,
+  "n_items": 7538,
   "retrieval": {
-    "recall@50": 0.1929,
-    "popularity_recall@50": 0.1051,
-    "lift_vs_popularity": 1.83
+    "recall@50": 0.0653,
+    "popularity_recall@50": 0.1376,
+    "lift_vs_popularity": 0.47
   },
   "ranking": {
-    "mlp_auc": 0.717,
-    "mlp_gauc": 0.7179,
-    "logreg_auc": 0.7187,
-    "logreg_gauc": 0.718,
-    "gauc_lift_vs_logreg": -0.0001
+    "mlp_auc": 0.7209,
+    "mlp_gauc": 0.6349,
+    "logreg_auc": 0.7256,
+    "logreg_gauc": 0.6331,
+    "gauc_lift_vs_logreg": 0.0018
   },
   "ablation_no_hist_rates": {
-    "mlp_gauc": 0.7188,
-    "gauc_drop": -0.0009
+    "mlp_gauc": 0.5572,
+    "gauc_drop": 0.0776
   }
 }
