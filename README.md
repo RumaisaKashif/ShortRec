@@ -11,8 +11,8 @@ two-stage pattern: **candidate generation (retrieval) → ranking**.
 ```
  user history ──▶ ┌────────────────────┐   top-100    ┌─────────────────────┐   top-10
                   │ Stage 1: Two-Tower │ ───────────▶ │ Stage 2: MLP Ranker │ ─────────▶  recommendations
-                  │ retrieval (FAISS-  │  candidates  │ predicts long-view  │             (ranked by
-                  │ ready embeddings)  │              │ (watch-through)     │              P(long-view))
+                  │ retrieval (FAISS   │  candidates  │ predicts long-view  │             (ranked by
+                  │ inner-product idx) │              │ (watch-through)     │              P(long-view))
                   └────────────────────┘              └─────────────────────┘
 ```
 
@@ -21,14 +21,19 @@ two-stage pattern: **candidate generation (retrieval) → ranking**.
   shown but didn't engage with — not random unseen items). The objective is the
   same *distinguish-the-true-pair-from-sampled-negatives* idea as **word2vec
   skip-gram-with-negative-sampling**, applied to users↔videos instead of
-  words↔contexts. Evaluated with **Recall@K** against a popularity baseline.
+  words↔contexts. Learned item vectors are indexed in **FAISS** (exact
+  inner-product search) for candidate generation. Evaluated with **Recall@K**
+  against a popularity baseline.
 - **Stage 2 — MLP engagement ranker.** A feed-forward network doing binary
-  classification to predict **long-view (watch-through)** from train-only
-  historical engagement features. Evaluated with **ROC-AUC** and **GAUC**
-  (grouped, per-user AUC) against a logistic-regression baseline, with a feature
-  **ablation**.
-- **Leakage-safe by construction.** Chronological train/val/test split; all
-  history features computed from the training period only.
+  classification to predict **long-view (watch-through)** from historical
+  engagement features. Evaluated with **ROC-AUC** and **GAUC** (grouped, per-user
+  AUC) against a logistic-regression baseline, with a feature **ablation**.
+- **Evaluation hygiene.** Chronological (time-ordered) train/val/test split, so
+  no future interactions leak into the held-out metric; **TEST/serve** features
+  use train-only aggregates, and **TRAIN** features use **leave-one-out**
+  engagement rates so a row never sees its own label. (Strictly point-in-time
+  per-row historical features — aggregates over *preceding* interactions only —
+  are a documented refinement; see *Future work*.)
 
 ### Methods, precisely (and the NLP caveat)
 
@@ -53,19 +58,19 @@ with the same schema — see the smoke test below.
 ## Results (real KuaiRand-Pure)
 
 Trained on the 1,141,112-interaction standard log (26,210 users · 7,538 videos),
-leakage-safe temporal split (70/10/20). These are the numbers the
-[live demo](https://huggingface.co/spaces/rumaisakashif/shortrec) serves (also in
-`demo/artifacts/metrics.json`):
+chronological split (70/10/20), with leave-one-out train features. These are the
+numbers the [live demo](https://huggingface.co/spaces/rumaisakashif/shortrec)
+serves (also in `demo/artifacts/metrics.json`):
 
 | Stage | Metric | ShortRec | Baseline |
 |---|---|---|---|
-| Ranking (long-view) | ROC-AUC | **0.721** | 0.726 (logistic regression) |
-| Ranking (long-view) | GAUC | **0.635** | 0.633 (logistic regression) |
-| Ranking — ablation | GAUC drop when historical-rate features removed | **−0.078** | — |
+| Ranking (long-view) | ROC-AUC | **0.736** | 0.730 (logistic regression) |
+| Ranking (long-view) | GAUC | **0.637** | 0.633 (logistic regression) |
+| Ranking — ablation | GAUC drop when historical-rate features removed | **−0.080** | — |
 | Retrieval | Recall@50 | 0.065 | **0.138 (popularity)** |
 
-Honest reading: the **ranker** is the strong, defensible result — ~0.72 AUC /
-0.63 GAUC predicting watch-through, with the ablation showing engagement-history
+Honest reading: the **ranker** is the strong, defensible result — ~0.74 AUC /
+0.64 GAUC predicting watch-through, with the ablation showing engagement-history
 features contribute most of the GAUC. The **two-tower retriever does not beat the
 popularity baseline on Recall** here: short-video engagement is heavily
 concentrated on popular items (exposure/feedback-loop bias), so a

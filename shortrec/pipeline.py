@@ -9,7 +9,7 @@ import pandas as pd
 
 from . import data as D
 from .artifacts import save_bundle
-from .features import ablation_mask, build_features
+from .features import ablation_mask, build_features, build_train_features_loo
 from .ranking import evaluate_ranker, logreg_baseline, train_ranker
 from .retrieval import evaluate_retrieval, popularity_recall, train_two_tower
 from .utils import get_device, set_seed
@@ -51,9 +51,18 @@ def run(cfg: dict, df: pd.DataFrame | None = None, save: bool = True) -> dict:
     pop_recall = popularity_recall(train_df, test_pos, seen, rcfg["recall_k"])
 
     # ---- Stage 2: ranking ----
-    Xtr = build_features(train_df["user_id"].to_numpy(), train_df["item_id"].to_numpy(),
-                         stats, durations)
+    # TRAIN features use leave-one-out engagement rates (a row never sees its own
+    # label); TEST features use train-only aggregates (no future leakage into the
+    # held-out metric).
+    usum = train_df.groupby("user_id")["engage"].sum().to_dict()
+    ucnt = train_df.groupby("user_id")["engage"].count().to_dict()
+    isum = train_df.groupby("item_id")["engage"].sum().to_dict()
+    icnt = train_df.groupby("item_id")["engage"].count().to_dict()
     ytr = train_df["engage"].to_numpy()
+    Xtr = build_train_features_loo(
+        train_df["user_id"].to_numpy(), train_df["item_id"].to_numpy(), ytr,
+        usum, ucnt, isum, icnt, stats.global_rate, durations,
+    )
     Xte = build_features(test_df["user_id"].to_numpy(), test_df["item_id"].to_numpy(),
                          stats, durations)
     yte = test_df["engage"].to_numpy()

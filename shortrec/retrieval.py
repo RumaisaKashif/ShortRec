@@ -10,6 +10,23 @@ from .metrics import recall_at_k
 from .models import TwoTower
 
 
+def build_faiss_index(item_vectors: np.ndarray):
+    """Build a FAISS inner-product index over item vectors (None if unavailable).
+
+    The catalogue is small (thousands of videos), so IndexFlatIP (exact
+    inner-product search) is the right choice; the same interface scales to an
+    approximate index (IVF/HNSW) for a production-sized catalogue.
+    """
+    try:
+        import faiss
+    except ImportError:
+        return None
+    mat = np.ascontiguousarray(item_vectors, dtype=np.float32)
+    index = faiss.IndexFlatIP(mat.shape[1])
+    index.add(mat)
+    return index
+
+
 def _sample_negatives(
     user_orig: np.ndarray,
     exposed_neg: dict[int, np.ndarray],
@@ -85,20 +102,33 @@ def retrieve_topk(
     k: int,
     device,
 ) -> dict[int, list[int]]:
-    """Return user_id -> top-k item ids (original ids), excluding train-seen items."""
+    """Return user_id -> top-k item ids (original ids), excluding train-seen items.
+
+    Candidate generation runs through a FAISS inner-product index when available
+    (over-fetching k + |seen| so seen items can be dropped), falling back to a
+    torch top-k otherwise.
+    """
     item_mat = model.all_item_vectors().to(device)          # (n_items, d)
     idx2item = {i: v for v, i in id_maps.item2idx.items()}
+    n_items = item_mat.shape[0]
+    index = build_faiss_index(item_mat.detach().cpu().numpy())
     out: dict[int, list[int]] = {}
     for u in user_orig_ids:
         if u not in id_maps.user2idx:
             continue
-        uv = model.user_vec(torch.tensor([id_maps.user2idx[u]], device=device))  # (1,d)
-        scores = (item_mat @ uv.squeeze(0))                 # (n_items,)
-        for it in seen.get(u, ()):                          # mask already-seen
-            if it in id_maps.item2idx:
-                scores[id_maps.item2idx[it]] = float("-inf")
-        top = torch.topk(scores, min(k, scores.numel())).indices.tolist()
-        out[u] = [idx2item[i] for i in top]
+        uv = model.user_vec(torch.tensor([id_maps.user2idx[u]], device=device)).squeeze(0)
+        seen_idx = {id_maps.item2idx[it] for it in seen.get(u, ()) if it in id_maps.item2idx}
+        if index is not None:
+            need = min(n_items, k + len(seen_idx))
+            q = uv.detach().cpu().numpy().astype(np.float32)[None, :]
+            found = index.search(q, need)[1][0]
+            cand = [i for i in found.tolist() if i not in seen_idx][:k]
+        else:
+            scores = item_mat @ uv
+            for i in seen_idx:
+                scores[i] = float("-inf")
+            cand = torch.topk(scores, min(k, scores.numel())).indices.tolist()
+        out[u] = [idx2item[i] for i in cand]
     return out
 
 

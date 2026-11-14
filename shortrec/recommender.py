@@ -9,6 +9,7 @@ import torch
 
 from .artifacts import load_bundle
 from .features import build_features
+from .retrieval import build_faiss_index
 
 
 class Recommender:
@@ -24,6 +25,7 @@ class Recommender:
         self.meta = bundle["meta"]
         self._idx2item = {i: v for v, i in self.id_maps.item2idx.items()}
         self._item_mat = self.tt.all_item_vectors().to(device)
+        self._index = build_faiss_index(self._item_mat.detach().cpu().numpy())
 
     @classmethod
     def from_dir(cls, artifacts_dir: str, device):
@@ -41,11 +43,15 @@ class Recommender:
 
         uidx = self.id_maps.user2idx[user_id]
         uv = self.tt.user_vec(torch.tensor([uidx], device=self.device)).squeeze(0)
-        scores = self._item_mat @ uv                      # (n_items,)
-        n_candidates = min(n_candidates, scores.numel())
-        top = torch.topk(scores, n_candidates)
-        cand_idx = top.indices.cpu().numpy()
-        cand_scores = top.values.cpu().numpy()
+        n_candidates = min(n_candidates, self._item_mat.shape[0])
+        if self._index is not None:                        # FAISS candidate generation
+            q = uv.detach().cpu().numpy().astype(np.float32)[None, :]
+            sims, idx = self._index.search(q, n_candidates)
+            cand_idx, cand_scores = idx[0], sims[0]
+        else:                                              # torch fallback
+            top = torch.topk(self._item_mat @ uv, n_candidates)
+            cand_idx = top.indices.cpu().numpy()
+            cand_scores = top.values.cpu().numpy()
         cand_items = np.array([self._idx2item[i] for i in cand_idx])
 
         feats = build_features(
